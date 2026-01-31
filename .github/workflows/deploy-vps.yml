@@ -127,32 +127,31 @@ jobs:
             nginx -t
             systemctl reload nginx
 
-            # Build and run backend
+            # Setup backend (run directly, not in Docker, so it can access Claude CLI)
             cd /opt/ai-agents-command/backend
 
             # Create .env for backend
             cat > .env << ENVEOF
-            DEBUG=false
-            CORS_ORIGINS=["http://89.208.103.242","http://localhost:5173"]
-            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
-            GITHUB_ORG=BulatNabi
-            CLAUDE_CLI_PATH=claude
-            ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
-            ENVEOF
+DEBUG=false
+CORS_ORIGINS=["http://89.208.103.242","http://localhost:5173"]
+GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+GITHUB_ORG=BulatNabi
+CLAUDE_CLI_PATH=claude
+ENVEOF
 
-            docker build -t ai-agents-backend .
+            # Install Python dependencies
+            pip3 install -r requirements.txt 2>/dev/null || pip install -r requirements.txt
 
-            # Stop and remove existing container
-            docker stop ai-agents-backend 2>/dev/null || true
-            docker rm ai-agents-backend 2>/dev/null || true
+            # Stop existing backend if running
+            pkill -f "uvicorn app.main:app" 2>/dev/null || true
+            sleep 2
 
-            # Run backend container
-            docker run -d \
-              --name ai-agents-backend \
-              --restart unless-stopped \
-              -p 8888:8000 \
-              --env-file .env \
-              ai-agents-backend
+            # Start backend with nohup (runs in background, survives SSH disconnect)
+            nohup uvicorn app.main:app --host 0.0.0.0 --port 8888 > /var/log/ai-agents-backend.log 2>&1 &
+
+            sleep 3
+            echo "Backend started. Checking if running..."
+            pgrep -f "uvicorn app.main:app" && echo "Backend is running!" || echo "Backend failed to start"
 
             echo "=== Deployment Complete ==="
             echo "Frontend: http://89.208.103.242"
