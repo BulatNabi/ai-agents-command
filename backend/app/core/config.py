@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     github_token: str = ""
     github_org: str = ""
 
-    # Claude Code CLI
-    claude_cli_path: str = "claude"
+    # Claude Code CLI (default to common install locations)
+    claude_cli_path: str = "/usr/bin/claude"
 
     # Agent Configuration
     agent_logs_dir: str = ".agent_logs"
