@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agentic-web-factory.local/schemas/agent-handover.json",
+  "title": "Agent Handover",
+  "description": "Schema for context handover between agents in the pipeline",
+  "type": "object",
+  "required": ["agent_id", "project_id", "timestamp", "status", "summary"],
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "Identifier of the agent that produced this handover",
+      "enum": [
+        "orchestrator-agent",
+        "design-architect-agent",
+        "frontend-developer-agent",
+        "backend-developer-agent",
+        "devops-agent"
+      ]
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Unique project identifier"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this handover was created"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["success", "partial", "failed"],
+      "description": "Completion status of the agent's work"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Human-readable summary of what was accomplished"
+    },
+    "artifacts": {
+      "type": "array",
+      "description": "Files or resources created by the agent",
+      "items": {
+        "type": "object",
+        "required": ["type", "path"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["file", "directory", "url", "config"]
+          },
+          "path": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "next_agent": {
+      "type": "string",
+      "description": "Suggested next agent in the pipeline",
+      "enum": [
+        "design-architect-agent",
+        "frontend-developer-agent",
+        "backend-developer-agent",
+        "devops-agent",
+        null
+      ]
+    },
+    "context": {
+      "type": "object",
+      "description": "Agent-specific context to pass forward",
+      "properties": {
+        "design_tokens": {
+          "type": "object",
+          "description": "Design system tokens (colors, spacing, etc.)"
+        },
+        "component_list": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of components to implement"
+        },
+        "api_endpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "method": { "type": "string" },
+              "path": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          },
+          "description": "API endpoints defined by backend"
+        },
+        "deployment_config": {
+          "type": "object",
+          "description": "Deployment configuration details"
+        }
+      },
+      "additionalProperties": true
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "recoverable": { "type": "boolean" }
+        }
+      },
+      "description": "Any errors encountered during execution"
+    }
+  }
+}
