@@ -61,6 +61,13 @@ jobs:
               npm install -g @anthropic-ai/claude-code
             fi
 
+            # Install Python3 and pip if not present
+            if ! command -v pip3 &> /dev/null; then
+              echo "Installing Python3 pip..."
+              apt-get update
+              apt-get install -y python3-pip python3-venv
+            fi
+
             # Create app directory
             mkdir -p /opt/ai-agents-command
             cd /opt/ai-agents-command
