@@ -14,7 +14,7 @@ export interface Project {
 
 export interface AgentStatus {
   agent: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'idle' | 'pending' | 'running' | 'completed' | 'failed';
   started_at?: string;
   completed_at?: string;
   error?: string;

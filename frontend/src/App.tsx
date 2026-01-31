@@ -3,14 +3,16 @@ import { MainIdeaInput } from '@/components/dashboard/MainIdeaInput';
 import { AgentStatusTracker } from '@/components/dashboard/AgentStatusTracker';
 import { ProjectGallery } from '@/components/dashboard/ProjectGallery';
 import { useProjects, usePipelineStatus } from '@/hooks/useProjects';
+import { api } from '@/lib/api';
 import type { Project } from '@/lib/api';
 
 function App() {
   const { projects, loading: projectsLoading, createProject } = useProjects();
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
-  const { status: pipelineStatus, loading: pipelineLoading } = usePipelineStatus(activeProjectId);
+  const { status: pipelineStatus, loading: pipelineLoading, refetch: refetchPipeline } = usePipelineStatus(activeProjectId);
 
   const handleSubmit = async (prompt: string) => {
     try {
@@ -26,6 +28,19 @@ function App() {
 
   const handleSelectProject = (project: Project) => {
     setActiveProjectId(project.id);
+  };
+
+  const handleStartPipeline = async () => {
+    if (!activeProjectId) return;
+    try {
+      setIsStarting(true);
+      await api.startPipeline(activeProjectId);
+      refetchPipeline();
+    } catch (error) {
+      console.error('Failed to start pipeline:', error);
+    } finally {
+      setIsStarting(false);
+    }
   };
 
   return (
@@ -51,7 +66,12 @@ function App() {
         {/* Pipeline Status */}
         {activeProjectId && (
           <section>
-            <AgentStatusTracker status={pipelineStatus} isLoading={pipelineLoading} />
+            <AgentStatusTracker
+              status={pipelineStatus}
+              isLoading={pipelineLoading}
+              onStart={handleStartPipeline}
+              isStarting={isStarting}
+            />
           </section>
         )}
 

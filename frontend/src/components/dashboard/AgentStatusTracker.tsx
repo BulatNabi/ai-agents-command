@@ -1,9 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import type { PipelineStatus, AgentStatus } from '@/lib/api';
 
 interface AgentStatusTrackerProps {
   status: PipelineStatus | null;
   isLoading?: boolean;
+  onStart?: () => void;
+  isStarting?: boolean;
 }
 
 const AGENT_ORDER = [
@@ -61,20 +64,30 @@ function AgentNode({
   );
 }
 
-export function AgentStatusTracker({ status, isLoading }: AgentStatusTrackerProps) {
+export function AgentStatusTracker({ status, isLoading, onStart, isStarting }: AgentStatusTrackerProps) {
   const agentStatusMap = new Map(status?.agents.map((a: AgentStatus) => [a.agent, a]));
+  const allIdle = status?.agents.every((a: AgentStatus) => a.status === 'idle');
 
   return (
     <Card className="border-primary/20 bg-card/50 backdrop-blur">
-      <CardHeader>
-        <CardTitle>Agent Pipeline</CardTitle>
-        <CardDescription>
-          {status?.current_agent
-            ? `Currently running: ${status.current_agent}`
-            : isLoading
-              ? 'Loading pipeline status...'
-              : 'Waiting for project to start'}
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Agent Pipeline</CardTitle>
+          <CardDescription>
+            {status?.current_agent
+              ? `Currently running: ${status.current_agent}`
+              : isLoading
+                ? 'Loading pipeline status...'
+                : allIdle
+                  ? 'Ready to start - click the button to begin'
+                  : 'Pipeline completed'}
+          </CardDescription>
+        </div>
+        {allIdle && onStart && (
+          <Button onClick={onStart} disabled={isStarting} size="lg">
+            {isStarting ? 'Starting...' : '▶ Start Pipeline'}
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between gap-4">
