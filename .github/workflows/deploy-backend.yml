@@ -59,11 +59,11 @@ jobs:
             docker stop ai-agents-backend 2>/dev/null || true
             docker rm ai-agents-backend 2>/dev/null || true
 
-            # Run new container on port 8080
+            # Run new container on port 8888
             docker run -d \
               --name ai-agents-backend \
               --restart unless-stopped \
-              -p 8080:8000 \
+              -p 8888:8000 \
               --env-file .env \
               ai-agents-backend
 
