@@ -62,7 +62,7 @@ function AgentNode({
 }
 
 export function AgentStatusTracker({ status, isLoading }: AgentStatusTrackerProps) {
-  const agentStatusMap = new Map(status?.agents.map((a) => [a.agent, a]));
+  const agentStatusMap = new Map(status?.agents.map((a: AgentStatus) => [a.agent, a]));
 
   return (
     <Card className="border-primary/20 bg-card/50 backdrop-blur">
