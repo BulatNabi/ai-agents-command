@@ -131,13 +131,10 @@ jobs:
             cd /opt/ai-agents-command/backend
 
             # Create .env for backend
-            cat > .env << ENVEOF
-DEBUG=false
-CORS_ORIGINS=["http://89.208.103.242","http://localhost:5173"]
-GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
-GITHUB_ORG=BulatNabi
-CLAUDE_CLI_PATH=claude
-ENVEOF
+            echo 'DEBUG=false' > .env
+            echo 'CORS_ORIGINS=["http://89.208.103.242","http://localhost:5173"]' >> .env
+            echo 'GITHUB_ORG=BulatNabi' >> .env
+            echo 'CLAUDE_CLI_PATH=claude' >> .env
 
             # Install Python dependencies
             pip3 install -r requirements.txt 2>/dev/null || pip install -r requirements.txt
@@ -156,4 +153,3 @@ ENVEOF
             echo "=== Deployment Complete ==="
             echo "Frontend: http://89.208.103.242"
             echo "API: http://89.208.103.242/api/"
-            docker ps | grep ai-agents-backend
