@@ -51,12 +51,12 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listProjects: () => request<ProjectListResponse>('/api/projects'),
+  listProjects: () => request<ProjectListResponse>('/api/projects/'),
 
   getProject: (id: string) => request<Project>(`/api/projects/${id}`),
 
   createProject: (prompt: string, name?: string) =>
-    request<Project>('/api/projects', {
+    request<Project>('/api/projects/', {
       method: 'POST',
       body: JSON.stringify({ prompt, name }),
     }),
