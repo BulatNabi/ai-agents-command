@@ -43,17 +43,16 @@ class ClaudeBridge:
             full_prompt = f"Previous agent context:\n```json\n{context_str}\n```\n\n{prompt}"
 
         # Build the claude command
+        # Format: claude -p "prompt" --print --output-format json
         cmd = [
             self.settings.claude_cli_path,
+            "-p", full_prompt,
             "--print",
-            "--agent", agent_name,
+            "--output-format", "json",
         ]
 
         if working_dir:
             cmd.extend(["--cwd", working_dir])
-
-        # Add the prompt
-        cmd.extend(["-p", full_prompt])
 
         # Log the invocation
         log_entry = {

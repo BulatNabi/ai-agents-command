@@ -149,14 +149,81 @@ async def start_project_pipeline(project_id: str, background_tasks: BackgroundTa
 
 
 async def run_pipeline(project_id: str):
-    """Background task to run the agent pipeline."""
-    import asyncio
+    """Background task to run the agent pipeline using Claude CLI."""
+    from ...core.claude_bridge import get_claude_bridge
 
     agents = _pipeline_states.get(project_id, {})
     project = _projects.get(project_id)
 
     if not project:
         return
+
+    bridge = get_claude_bridge()
+    user_prompt = project.prompt
+
+    # Agent prompts for each phase
+    agent_prompts = {
+        AgentType.ORCHESTRATOR: f"""You are the Project Orchestrator. Analyze this project request and create a detailed development plan.
+
+User Request: {user_prompt}
+
+Create a structured plan including:
+1. Project name and description
+2. Technical stack recommendations
+3. Key features to implement
+4. File structure
+5. Step-by-step implementation order
+
+Output your plan in a structured format.""",
+
+        AgentType.DESIGN: f"""You are the Design Architect. Based on the project request, create a design specification.
+
+User Request: {user_prompt}
+
+Create:
+1. Color palette (primary, secondary, accent colors)
+2. Typography recommendations
+3. Component hierarchy
+4. Layout structure
+5. UI/UX guidelines
+
+Be specific with hex colors and component names.""",
+
+        AgentType.FRONTEND: f"""You are the Frontend Developer. Build the React frontend for this project.
+
+User Request: {user_prompt}
+
+Using React, TypeScript, and Tailwind CSS:
+1. Create the main components
+2. Implement responsive layouts
+3. Add proper styling
+4. Include any necessary state management
+
+Generate the actual code files.""",
+
+        AgentType.BACKEND: f"""You are the Backend Developer. Build the API for this project.
+
+User Request: {user_prompt}
+
+Using FastAPI and Python:
+1. Create API endpoints
+2. Define data models
+3. Implement business logic
+4. Add proper error handling
+
+Generate the actual code files.""",
+
+        AgentType.DEVOPS: f"""You are the DevOps Engineer. Set up deployment for this project.
+
+User Request: {user_prompt}
+
+Create:
+1. Dockerfile for the application
+2. GitHub Actions workflow for CI/CD
+3. Deployment configuration
+
+Use the GitHub MCP to create a new repository and push the code."""
+    }
 
     agent_order = [
         AgentType.ORCHESTRATOR,
@@ -165,6 +232,8 @@ async def run_pipeline(project_id: str):
         AgentType.BACKEND,
         AgentType.DEVOPS,
     ]
+
+    context = {"user_prompt": user_prompt}
 
     for agent_type in agent_order:
         agent_key = agent_type.value
@@ -176,18 +245,52 @@ async def run_pipeline(project_id: str):
             started_at=datetime.utcnow()
         )
 
-        # Simulate agent work (replace with actual Claude CLI calls)
-        await asyncio.sleep(3)
+        try:
+            # Call Claude CLI
+            result = await bridge.invoke_agent(
+                agent_name=agent_key,
+                prompt=agent_prompts[agent_type],
+                project_id=project_id,
+                context=context
+            )
 
-        # Set agent to completed
-        agents[agent_key] = AgentStatusResponse(
-            agent=agent_type,
-            status=AgentStatus.COMPLETED,
-            started_at=agents[agent_key].started_at,
-            completed_at=datetime.utcnow(),
-            output=f"{agent_type.value} completed successfully"
-        )
+            # Update context with this agent's output for next agent
+            context[agent_key] = result.get("output", "")
 
-    # Update project status to completed
+            # Set agent status based on result
+            if result["success"]:
+                agents[agent_key] = AgentStatusResponse(
+                    agent=agent_type,
+                    status=AgentStatus.COMPLETED,
+                    started_at=agents[agent_key].started_at,
+                    completed_at=datetime.utcnow(),
+                    output=result["output"][:500] if result["output"] else "Completed"
+                )
+            else:
+                agents[agent_key] = AgentStatusResponse(
+                    agent=agent_type,
+                    status=AgentStatus.FAILED,
+                    started_at=agents[agent_key].started_at,
+                    completed_at=datetime.utcnow(),
+                    error=result.get("error", "Unknown error")
+                )
+                # Stop pipeline on failure
+                project.status = ProjectStatus.FAILED
+                project.updated_at = datetime.utcnow()
+                return
+
+        except Exception as e:
+            agents[agent_key] = AgentStatusResponse(
+                agent=agent_type,
+                status=AgentStatus.FAILED,
+                started_at=agents[agent_key].started_at,
+                completed_at=datetime.utcnow(),
+                error=str(e)
+            )
+            project.status = ProjectStatus.FAILED
+            project.updated_at = datetime.utcnow()
+            return
+
+    # All agents completed successfully
     project.status = ProjectStatus.COMPLETED
     project.updated_at = datetime.utcnow()
