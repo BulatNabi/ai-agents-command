@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from datetime import datetime
 from uuid import uuid4
 
@@ -122,16 +122,72 @@ async def get_project_pipeline(project_id: str):
 
 
 @router.post("/{project_id}/pipeline/start")
-async def start_project_pipeline(project_id: str):
+async def start_project_pipeline(project_id: str, background_tasks: BackgroundTasks):
     """Start the agent pipeline for a project."""
     if project_id not in _projects:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Initialize pipeline if needed
-    _get_or_create_pipeline(project_id)
+    # Initialize pipeline
+    agents = _get_or_create_pipeline(project_id)
 
     # Update project status
     _projects[project_id].status = ProjectStatus.IN_PROGRESS
     _projects[project_id].updated_at = datetime.utcnow()
 
+    # Start the orchestrator agent
+    orchestrator_key = AgentType.ORCHESTRATOR.value
+    agents[orchestrator_key] = AgentStatusResponse(
+        agent=AgentType.ORCHESTRATOR,
+        status=AgentStatus.RUNNING,
+        started_at=datetime.utcnow()
+    )
+
+    # Run pipeline in background
+    background_tasks.add_task(run_pipeline, project_id)
+
     return {"message": "Pipeline started", "project_id": project_id}
+
+
+async def run_pipeline(project_id: str):
+    """Background task to run the agent pipeline."""
+    import asyncio
+
+    agents = _pipeline_states.get(project_id, {})
+    project = _projects.get(project_id)
+
+    if not project:
+        return
+
+    agent_order = [
+        AgentType.ORCHESTRATOR,
+        AgentType.DESIGN,
+        AgentType.FRONTEND,
+        AgentType.BACKEND,
+        AgentType.DEVOPS,
+    ]
+
+    for agent_type in agent_order:
+        agent_key = agent_type.value
+
+        # Set agent to running
+        agents[agent_key] = AgentStatusResponse(
+            agent=agent_type,
+            status=AgentStatus.RUNNING,
+            started_at=datetime.utcnow()
+        )
+
+        # Simulate agent work (replace with actual Claude CLI calls)
+        await asyncio.sleep(3)
+
+        # Set agent to completed
+        agents[agent_key] = AgentStatusResponse(
+            agent=agent_type,
+            status=AgentStatus.COMPLETED,
+            started_at=agents[agent_key].started_at,
+            completed_at=datetime.utcnow(),
+            output=f"{agent_type.value} completed successfully"
+        )
+
+    # Update project status to completed
+    project.status = ProjectStatus.COMPLETED
+    project.updated_at = datetime.utcnow()
