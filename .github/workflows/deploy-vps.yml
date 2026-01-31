@@ -67,10 +67,10 @@ jobs:
               git clone https://github.com/BulatNabi/ai-agents-command.git .
             fi
 
-            # Build frontend
+            # Build frontend (empty VITE_API_URL = use relative paths via nginx proxy)
             cd /opt/ai-agents-command/frontend
             npm ci
-            VITE_API_URL=http://89.208.103.242:8888 npm run build
+            VITE_API_URL= npm run build
 
             # Copy frontend build to nginx
             rm -rf /var/www/ai-agents
