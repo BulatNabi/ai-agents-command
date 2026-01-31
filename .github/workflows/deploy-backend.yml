@@ -1,0 +1,71 @@
+name: Deploy Backend to VPS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            set -e
+
+            # Install Docker if not present
+            if ! command -v docker &> /dev/null; then
+              echo "Installing Docker..."
+              curl -fsSL https://get.docker.com | sh
+              systemctl enable docker
+              systemctl start docker
+            fi
+
+            # Create app directory
+            mkdir -p /opt/ai-agents-command
+            cd /opt/ai-agents-command
+
+            # Clone or pull latest code
+            if [ -d ".git" ]; then
+              git pull origin main
+            else
+              git clone https://github.com/BulatNabi/ai-agents-command.git .
+            fi
+
+            # Create .env file for backend
+            cat > backend/.env << 'ENVEOF'
+            DEBUG=false
+            CORS_ORIGINS=["https://ai-agents-command.vercel.app","http://localhost:5173"]
+            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+            GITHUB_ORG=BulatNabi
+            CLAUDE_CLI_PATH=claude
+            ENVEOF
+
+            # Build and run backend container
+            cd backend
+            docker build -t ai-agents-backend .
+
+            # Stop existing container if running
+            docker stop ai-agents-backend 2>/dev/null || true
+            docker rm ai-agents-backend 2>/dev/null || true
+
+            # Run new container
+            docker run -d \
+              --name ai-agents-backend \
+              --restart unless-stopped \
+              -p 8000:8000 \
+              --env-file .env \
+              ai-agents-backend
+
+            echo "Backend deployed successfully!"
+            docker ps | grep ai-agents-backend
