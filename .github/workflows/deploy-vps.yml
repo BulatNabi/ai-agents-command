@@ -143,15 +143,19 @@ jobs:
             echo 'GITHUB_ORG=BulatNabi' >> .env
             echo 'CLAUDE_CLI_PATH=claude' >> .env
 
+            # Create and activate virtual environment
+            python3 -m venv /opt/ai-agents-command/venv
+            source /opt/ai-agents-command/venv/bin/activate
+
             # Install Python dependencies
-            pip3 install -r requirements.txt 2>/dev/null || pip install -r requirements.txt
+            pip install -r requirements.txt
 
             # Stop existing backend if running
             pkill -f "uvicorn app.main:app" 2>/dev/null || true
             sleep 2
 
-            # Start backend with nohup (runs in background, survives SSH disconnect)
-            nohup uvicorn app.main:app --host 0.0.0.0 --port 8888 > /var/log/ai-agents-backend.log 2>&1 &
+            # Start backend with nohup using venv python
+            nohup /opt/ai-agents-command/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8888 > /var/log/ai-agents-backend.log 2>&1 &
 
             sleep 3
             echo "Backend started. Checking if running..."
