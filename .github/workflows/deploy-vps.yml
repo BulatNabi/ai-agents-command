@@ -36,6 +36,18 @@ jobs:
               systemctl enable nginx
             fi
 
+            # Open firewall ports
+            if command -v ufw &> /dev/null; then
+              ufw allow 80/tcp
+              ufw allow 443/tcp
+              ufw allow 8888/tcp
+              ufw --force enable || true
+            fi
+
+            # Also try iptables if ufw not available
+            iptables -I INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null || true
+            iptables -I INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null || true
+
             # Install Node.js if not present
             if ! command -v node &> /dev/null; then
               echo "Installing Node.js..."
