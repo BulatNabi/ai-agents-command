@@ -141,7 +141,11 @@ jobs:
             echo 'DEBUG=false' > .env
             echo 'CORS_ORIGINS=["http://89.208.103.242","http://localhost:5173"]' >> .env
             echo 'GITHUB_ORG=BulatNabi' >> .env
-            echo 'CLAUDE_CLI_PATH=claude' >> .env
+
+            # Find Claude CLI path and add to .env
+            CLAUDE_PATH=$(which claude || echo "/usr/local/bin/claude")
+            echo "CLAUDE_CLI_PATH=$CLAUDE_PATH" >> .env
+            echo "Found Claude at: $CLAUDE_PATH"
 
             # Create and activate virtual environment
             python3 -m venv /opt/ai-agents-command/venv
