@@ -6,7 +6,11 @@ from ...models.schemas import (
     ProjectCreate,
     ProjectResponse,
     ProjectListResponse,
-    ProjectStatus
+    ProjectStatus,
+    AgentPipelineStatus,
+    AgentStatusResponse,
+    AgentType,
+    AgentStatus
 )
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -79,3 +83,55 @@ async def delete_project(project_id: str):
     if project_id not in _projects:
         raise HTTPException(status_code=404, detail="Project not found")
     del _projects[project_id]
+
+
+# In-memory pipeline states (shared with agents module in real implementation)
+_pipeline_states: dict[str, dict[str, AgentStatusResponse]] = {}
+
+
+def _get_or_create_pipeline(project_id: str) -> dict[str, AgentStatusResponse]:
+    """Get or initialize pipeline state for a project."""
+    if project_id not in _pipeline_states:
+        _pipeline_states[project_id] = {
+            agent.value: AgentStatusResponse(
+                agent=agent,
+                status=AgentStatus.IDLE
+            )
+            for agent in AgentType
+        }
+    return _pipeline_states[project_id]
+
+
+@router.get("/{project_id}/pipeline", response_model=AgentPipelineStatus)
+async def get_project_pipeline(project_id: str):
+    """Get the pipeline status for a project."""
+    agents = _get_or_create_pipeline(project_id)
+
+    # Find current running agent
+    current_agent = None
+    for agent_type, status in agents.items():
+        if status.status == AgentStatus.RUNNING:
+            current_agent = AgentType(agent_type)
+            break
+
+    return AgentPipelineStatus(
+        project_id=project_id,
+        current_agent=current_agent,
+        agents=list(agents.values())
+    )
+
+
+@router.post("/{project_id}/pipeline/start")
+async def start_project_pipeline(project_id: str):
+    """Start the agent pipeline for a project."""
+    if project_id not in _projects:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Initialize pipeline if needed
+    _get_or_create_pipeline(project_id)
+
+    # Update project status
+    _projects[project_id].status = ProjectStatus.IN_PROGRESS
+    _projects[project_id].updated_at = datetime.utcnow()
+
+    return {"message": "Pipeline started", "project_id": project_id}
